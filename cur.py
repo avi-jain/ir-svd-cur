@@ -1,7 +1,8 @@
 import numpy as np
 from svd import SVD
 import scipy.sparse as sp
-
+import time
+from math import sqrt
 start = time.clock()
 
 # Note - numpy's dot function does not have native support for handling sparse matrices
@@ -51,12 +52,12 @@ class CUR:
         4 (default)
     crank: int, optional
         Number of columns to sample from data.
-        4 (default)            
+        2 (default)            
     """
     
     def __init__(self, data, k=-1, rrank=0, crank=0):
     	#instead of writing similar constructor separately, reuse code
-        SVD.__init__(self, data,k=k,rrank=rrank, crank=rrank)
+        SVD.__init__(self, data,k=k,rowrank=rrank, colrank=rrank)
 
     def sample_probability(self):
         
@@ -80,8 +81,9 @@ class CUR:
     # For picking out rows and cols where n -> no of rows/cols to be picked
     def sample(self, n, prob,type):        
         if(type == "row"):
-        	arr = np.empty(n,)
-        elif(type == "col")
+        	arr = np.empty([n,3]) #hardcoded
+        elif(type == "col"):
+        	arr = np.empty([8,n]) #hardcoded
         for i in range(n):            
             # pick the highest probability row/col,insert column after dividing by root(nP)
             # and then turn that to zero
@@ -91,18 +93,18 @@ class CUR:
 	        elif(type == "col"):
 	        	np.append(arr,(self.data[:,temp_ind]/sqrt(n*prob[temp_ind])))
         return arr
-    def computeCUR(self):          
-        if sp.issparse(self.data):
-            self._C = sp.csc_matrix()        
-            self._R = sp.csc_matrix()        
+    # def computeCUR(self):          
+    #     if sp.issparse(self.data):
+    #         self._C = sp.csc_matrix()        
+    #         self._R = sp.csc_matrix()        
 
-            self._U = pinv()
+    #         self._U = pinv()
                      
-        else:        
-            self._C = 
-            self._R = 
+    #     else:        
+    #         self._C = 
+    #         self._R = 
 
-            self._U = pinv()
+    #         self._U = pinv()
 
 data = np.array([
 	[2, 5, 3],
@@ -116,9 +118,10 @@ data = np.array([
 ])
 cur = CUR(data)
 prow, pcol = cur.sample_probability()
-rows = cur.sample(prows,"row")
-cols = cur.sample(pcols,"col")
-
+rows = cur.sample(4,prow,"row")
+cols = cur.sample(2,pcol,"col")
+print(rows)
+print(cols)
 end = time.clock()
 print(end - start)
 

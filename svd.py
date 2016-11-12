@@ -61,15 +61,15 @@ class SVD:
 			# until the smallest value ends up in Ʃmm
 			
 			#numpy.diag - Extract a diagonal or construct a diagonal array.
-			self.S = np.diag(np.sqrt(values))
+			self.S = np.diag(np.sqrt(abs(values)))
 			
 			# and the inverse of it
-			S_inv = np.diag(np.sqrt(values)**-1)
+			S_inv = np.diag(np.sqrt(abs(values))**-1)
 					
 			# compute V from it
 			self.V = np.dot(S_inv, np.dot(self.U[:,:].T, self.data[:,:]))
 			print(V)
-			return (U,S,V)
+			return (self.U,self.S,self.V)
 
 	# The right singular matrix V
 	def _right_svd(self):
@@ -85,17 +85,17 @@ class SVD:
 			# numpy automatically returns the normalized (unit length) vectors
 			self.V = v_vectors[:]
 			# Sigma
-			self.S= np.diag(np.sqrt(values))
+			self.S= np.diag(np.sqrt(abs(values)))
 			
 			# and the inverse of it
-			S_inv = np.diag(1.0/np.sqrt(values))    
+			S_inv = np.diag(1.0/np.sqrt(abs(values)))    
 						
 			Vtmp = v_vectors[:]
 
 			self.U = np.dot(np.dot(self.data[:,:], Vtmp), S_inv)                    
 			self.V = Vtmp.T
-			print(V)
-			return (U,S,V)
+			print(U)
+			return (self.U,self.S,self.V)
 data = np.array([
 	[2, 5, 3],
 	[1, 2, 1],
