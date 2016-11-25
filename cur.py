@@ -1,131 +1,125 @@
-import numpy as np
-from svd import SVD
-import scipy.sparse as sp
-import time
-from math import sqrt
-start = time.clock()
+# This module implements the CUR functionality
 
-# Note - numpy's dot function does not have native support for handling sparse matrices
-# Hence we make use of scipy's sparse functions
-def frobenius_norm(arr):
-        """ Frobenius norm for a data matrix        
-        Returns:
-            frobenius norm: F = ||Sum of squares of all elements in matrix - sum of squares ||
-        """                 
-        pass
-def pinv(W):    
+# REQUIRED IMPORTS
+
+import scipy.sparse as sps
+import numpy as np
+
+
+
+def csr_vappend(a, b):
+    """ Takes in 2 csr_matrices and appends the second one to the bottom of the first one.
+    Much faster than scipy.sparse.vstack but assumes the type to be csr and overwrites
+    the first matrix instead of copying it. The data, indices, and indptr still get copied."""
+
+    a.data = np.hstack((a.data,b.data))
+    a.indices = np.hstack((a.indices,b.indices))
+    a.indptr = np.hstack((a.indptr,(b.indptr + a.nnz)[1:]))
+    a._shape = (a.shape[0]+b.shape[0],b.shape[1])
+
+
+# Pass selected column/rows and row/col indexes
+def get_rows_from_col_matrix(z, row_val):
+    arr = []
+    for i in row_val:
+        arr.append(z.getrow(i).toarray()[0])
+    return np.array(arr)
+
+
+def func(z):
+    (row,col)=z.shape
+    for i in range(row):
+        for j in range(col):
+            if(z[i][j]!=0):
+                z[i][j]=1.0/float(z[i][j])
+    return z
+
+
+def pinv(W):
     # Compute Pseudoinverse of a matrix W
-    # calculate SVD
-    svd = SVD(W)
-    X, Z, YT = W._left_svd() 
+    # calculate np.linalg.svd
+    X, Z, YT = np.linalg.svd(W,full_matrices=False)
+    Z = np.diag(Z)
     XT = X.T
     Y = YT.T
+    ZP = func(Z)
 
-    # Wdiag = W.diagonal()
-    # Wdiag = np.where(Wdiag >eps, 1.0/Wdiag, 0.0)
-    
-    # for i in range(S.shape[0]):
-    #     W[i,i] = Wdiag[i]
-            
-    # if sp.issparse(W):            
-    #     U =  Y * ZP  * XT
-    # else:    
-    #     U = np.dot()
+    U = np.dot(Y,np.dot(ZP,XT))
 
-    # return U
-    print(YT)
-    print(Y)
+    return U
+
+
 
 class CUR:
-    """     
+    """
     CUR Decomposition. Factorize a data matrix into three matrices s.t.
     F = | data - USV| is minimal. CUR randomly selects cols and rows from
     data for building C and R, respectively.
-    The U matrix is the pseudo inverse of W+ which is the SVD of W.
-    W is the "intersection" of C and R 
+    The U matrix is the pseudo inverse of W+ which is the np.linalg.svd of W.
+    W is the "intersection" of C and R
     Parameters
     ----------
     data : array_like [data_dimension x num_samples]
         the input data
-    rrank: int, optional 
+    rrank: int, optional
         Number of rows to sample from data.
         4 (default)
     crank: int, optional
         Number of columns to sample from data.
-        2 (default)            
+        2 (default)
     """
-    
-    def __init__(self, data, k=-1, rrank=0, crank=0):
-    	#instead of writing similar constructor separately, reuse code
-        SVD.__init__(self, data,k=k,rowrank=rrank, colrank=rrank)
+
+    def __init__(self, data):
+        self.rows, self.cols = data[0], data[1]
+        self.data = sps.csr_matrix((data[2], (self.rows, self.cols)))
+
 
     def sample_probability(self):
-        
-        if sp.issparse(self.data):
-            dsquare = self.data.multiply(self.data)    
-        else:
-            dsquare = self.data[:,:]**2
-        
+        dsquare = self.data.multiply(self.data)
+
         # specifying np64 because of future division
         prow = np.array(dsquare.sum(axis=1), np.float64)
         pcol = np.array(dsquare.sum(axis=0), np.float64)
-        print(prow)
-        print(pcol)
+        # print(prow)
+        # print(pcol)
 
         prow /= prow.sum()
-        pcol /= pcol.sum()    
-        
-        # the unspecified value (no of rows) is inferred from original array for np.reshape
-        return (prow,pcol)
+        pcol /= pcol.sum()
+
+        # the unspecified value (no of rows) is inferred from original array
+        # for np.reshape
+        return (prow, pcol)
+
 
     # For picking out rows and cols where n -> no of rows/cols to be picked
-    def sample(self, n, prob,type):        
-        if(type == "row"):
-        	arr = np.empty([n,3]) #hardcoded
-        elif(type == "col"):
-        	arr = np.empty([8,n]) #hardcoded
-        for i in range(n):            
-            # pick the highest probability row/col,insert column after dividing by root(nP)
-            # and then turn that to zero
-	        temp_ind = np.argmax(prob)
-	        if(type == "row"):
-	        	np.append(arr,(self.data[temp_ind,:]/sqrt(n*prob[temp_ind])))
-	        elif(type == "col"):
-	        	np.append(arr,(self.data[:,temp_ind]/sqrt(n*prob[temp_ind])))
-        return arr
-    # def computeCUR(self):          
-    #     if sp.issparse(self.data):
-    #         self._C = sp.csc_matrix()        
-    #         self._R = sp.csc_matrix()        
+    def sample(self, n, prob, typ):
+        probcum = np.cumsum(prob.flatten())
 
-    #         self._U = pinv()
-                     
-    #     else:        
-    #         self._C = 
-    #         self._R = 
+        ind = []
 
-    #         self._U = pinv()
+        if typ == "row":
+            matrices = sps.csr_matrix((0, self.data.shape[1]))
+        else:
+            matrices = sps.csr_matrix((0, self.data.shape[0]))
 
-data = np.array([
-	[2, 5, 3],
-	[1, 2, 1],
-	[4, 1, 1],
-	[3, 5, 2],
-	[5, 3, 1],
-	[4, 5, 5],
-	[2, 4, 2],
-	[2, 2, 5],
-])
-cur = CUR(data)
-prow, pcol = cur.sample_probability()
-rows = cur.sample(4,prow,"row")
-cols = cur.sample(2,pcol,"col")
-print(rows)
-print(cols)
-end = time.clock()
-print(end - start)
+        for i in range(n):
+            # pick the row/col,insert column after dividing by root(nP)
+            r = np.random.rand()
+            for j in range(len(probcum)):
+                if(probcum[j] >= r):
+                    # print(temp_ind)
+                    # push into another array for intersection
+                    ind.append(j)
+                    # add a row/column to the list of matrices we're building
+                    if typ == "row":
+                        csr_vappend(matrices, self.data.getrow(j))
+                    else:
+                        col = self.data.getcol(j).transpose().tocsr()
+                        csr_vappend(matrices, col)
+                    break
 
-    
+        if typ == "col":
+            matrices = matrices.transpose().tocsr()
 
-
-        
+        # Returns indices of selected rows/cols
+        return (ind, matrices)
